@@ -80,7 +80,7 @@ export default {
       getData: 'getData',
     }),
     async sendTx() {
-      await this.sendTransaction(this.to, this.value);
+      await this.sendTransaction([this.to, this.value]);
       this.to = '';
       this.value = '';
     },

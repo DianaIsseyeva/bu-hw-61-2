@@ -1,11 +1,13 @@
 /* eslint-disable no-unused-vars */
 import { ABI } from '@/contracts/Example.abi';
 import { bytecode } from '@/contracts/Example.bin';
-import ethers from 'ethers';
 import { createStore } from 'vuex';
 import Web3 from 'web3';
+const ethers = require('ethers');
 const web3 = new Web3('wss://eth-goerli.g.alchemy.com/v2/FY02V0D1h9LCi7Gox4qpJHREU5tNAIaq');
-
+const provider = new ethers.providers.JsonRpcProvider(
+  'https://eth-goerli.g.alchemy.com/v2/FY02V0D1h9LCi7Gox4qpJHREU5tNAIaq'
+);
 export default createStore({
   state: {
     provider: {},
@@ -24,23 +26,23 @@ export default createStore({
     },
   },
   actions: {
-    async newBlockHeaders({ commit }) {
-      web3.eth.subscribe('newBlockHeaders').on('data', block => {
-        let newBlock = {
-          number: block.number,
-          hash: block.hash,
-        };
-        commit('addBlock', newBlock);
-      });
-    },
+    // async newBlockHeaders({ commit }) {
+    //   web3.eth.subscribe('newBlockHeaders').on('data', block => {
+    //     let newBlock = {
+    //       number: block.number,
+    //       hash: block.hash,
+    //     };
+    //     commit('addBlock', newBlock);
+    //   });
+    // },
     async getBlock({ commit }, blockNumberOrHash) {
       if (!ethers.utils.isBytesLike(blockNumberOrHash)) {
         blockNumberOrHash = Number(blockNumberOrHash);
       }
-      return await provider.getBlock(blockNumberOrHash);
+      return await this.state.provider.getBlock(blockNumberOrHash);
     },
     async getTransaction(txHash) {
-      return await provider.getTransaction(txHash);
+      return await this.state.provider.getTransaction(txHash);
     },
     async connectionWallet({ state }) {
       if (typeof window.ethereum !== 'undefined') {
@@ -63,7 +65,7 @@ export default createStore({
       }
       // connect account
       // eslint-disable-next-line no-undef
-      ethereum.request({ method: 'eth_requestAccounts' }).then(accounts => {
+      await ethereum.request({ method: 'eth_requestAccounts' }).then(accounts => {
         state.wallet.address = accounts[0];
         console.log(`Account ${state.wallet.address} connected`);
       });
@@ -71,7 +73,8 @@ export default createStore({
       // eslint-disable-next-line no-undef
       state.provider = new ethers.providers.Web3Provider(ethereum);
       // get chain's parametres
-      let network = await state.provider.getNetwork();
+      console.log(state.provider);
+      let network = await provider.getNetwork();
       state.wallet.chainId = network.chainId;
       state.wallet.chain = network.name;
 
@@ -83,15 +86,21 @@ export default createStore({
       // eslint-disable-next-line no-undef
       ethereum.on('chainChanged', async chainId => {
         // eslint-disable-next-line no-undef
-        state.web3Wallet = new Web3(ethereum);
-        state.wallet.chainId = await state.web3Wallet.eth.net.getId();
-        state.wallet.chain = await state.web3Wallet.eth.net.getNetworkType();
+        //create provider
+        // eslint-disable-next-line no-undef
+        state.provider = new ethers.providers.Web3Provider(ethereum);
+        // get chain's parametres
+        let network = await provider.getNetwork();
+        state.wallet.chainId = network.chainId;
+        state.wallet.chain = network.name;
         console.log(`chainID changed to ${state.wallet.chainId}`);
         console.log(`chain changed to ${state.wallet.chain}`);
       });
     },
-    async sendTransaction({ state }, to, value) {
-      value = state.web3Wallet.utils.numberToHex(value);
+    async sendTransaction({ state }, args) {
+      let [to, value] = args;
+      value = ethers.BigNumber.from(value);
+      value = value.toHexString();
       // eslint-disable-next-line no-undef
       await ethereum
         .request({
@@ -125,8 +134,9 @@ export default createStore({
         });
     },
     async setNumber({ state }, contractAddress, number) {
-      let myContract = new state.web3Wallet.eth.Contract(ABI, contractAddress);
-      let txData = myContract.methods.setNumber(number).encodeABI();
+      let iface = new ethers.utils.Interface(ABI);
+      let txData = iface.encodeFunctionData('setNumber', [number]);
+
       // eslint-disable-next-line no-undef
       ethereum
         .request({
@@ -144,37 +154,36 @@ export default createStore({
         });
     },
     async getNumber({ state }, contractAddress) {
-      let myContract = new state.web3Wallet.eth.Contract(ABI, contractAddress);
-      // eslint-disable-next-line no-undef
-      let number = await myContract.methods.getNumber().call({ from: state.wallet.address });
-      return number;
+      let myContract = new ethers.Contract(contractAddress, ABI, state.provider);
+      let result = await myContract.getNumber();
+      return result;
     },
 
-    async addToData({ state }, contractAddress, number) {
-      let myContract = new state.web3Wallet.eth.Contract(ABI, contractAddress);
-      let txData = myContract.methods.addToData(number).encodeABI();
-      // eslint-disable-next-line no-undef
-      ethereum
-        .request({
-          method: 'eth_sendTransaction',
-          params: [
-            {
-              from: state.wallet.address,
-              to: contractAddress,
-              data: txData,
-            },
-          ],
-        })
-        .then(hash => {
-          console.log(`Tx hash ${hash}`);
-        });
-    },
-    async getData({ state }, contractAddress) {
-      let myContract = new state.web3Wallet.eth.Contract(ABI, contractAddress);
-      // eslint-disable-next-line no-undef
-      let number = await myContract.methods.getData().call({ from: state.wallet.address });
-      return number;
-    },
+    // async addToData({ state }, contractAddress, number) {
+    //   let myContract = new state.web3Wallet.eth.Contract(ABI, contractAddress);
+    //   let txData = myContract.methods.addToData(number).encodeABI();
+    //   // eslint-disable-next-line no-undef
+    //   ethereum
+    //     .request({
+    //       method: 'eth_sendTransaction',
+    //       params: [
+    //         {
+    //           from: state.wallet.address,
+    //           to: contractAddress,
+    //           data: txData,
+    //         },
+    //       ],
+    //     })
+    //     .then(hash => {
+    //       console.log(`Tx hash ${hash}`);
+    //     });
+    // },
+    // async getData({ state }, contractAddress) {
+    //   let myContract = new state.web3Wallet.eth.Contract(ABI, contractAddress);
+    //   // eslint-disable-next-line no-undef
+    //   let number = await myContract.methods.getData().call({ from: state.wallet.address });
+    //   return number;
+    // },
   },
   modules: {},
 });
