@@ -37,6 +37,23 @@
 
   <div>
     <div>
+      <input v-model="string" placeholder="enter string" />
+    </div>
+    <div>
+      <input v-model="cAddress" placeholder="enter address" />
+    </div>
+    <button @click="sString">set</button>
+  </div>
+  <div>
+    <div>
+      <input v-model="cAddress" placeholder="enter address" />
+    </div>
+    <button @click="gString">get</button>
+    String = {{ ansS }}
+  </div>
+
+  <div>
+    <div>
       <input v-model="number" placeholder="enter number" />
     </div>
     <div>
@@ -62,6 +79,8 @@ export default {
       value: '',
       number: '',
       ans: '',
+      ansS: '',
+      string: '',
       cAddress: '',
       data: [],
     };
@@ -76,7 +95,9 @@ export default {
       deployContract: 'deployContract',
       setNumber: 'setNumber',
       getNumber: 'getNumber',
-      addToData: 'addToData',
+      setString: 'setString',
+      getString: 'getString',
+      setData: 'setData',
       getData: 'getData',
     }),
     async sendTx() {
@@ -90,8 +111,14 @@ export default {
     async gNumber() {
       this.ans = await this.getNumber(this.cAddress);
     },
+    async sStr() {
+      await this.setString([this.cAddress, this._str]);
+    },
+    async gStr() {
+      this.ansS = await this.getString(this.cAddress);
+    },
     async sData() {
-      await this.addToData([this.cAddress, this.number]);
+      await this.setData([this.cAddress, this.number]);
     },
     async gData() {
       this.data = await this.getData(this.cAddress);
